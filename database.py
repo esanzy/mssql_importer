@@ -51,7 +51,7 @@ def raw_query(query):
     global cursor
     cursor.execute(query)
     if config.commit:
-        redconn.commit()
+        cnxn.commit()
 
 
 def get_tables():
