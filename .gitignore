@@ -1,5 +1,6 @@
 env_migrate_legacy/**
 data/**
+__pycache__/**
 .DS_Store
 *.pyc
 config.py
