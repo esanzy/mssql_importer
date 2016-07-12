@@ -1,3 +1,4 @@
+from __future__ import unicode_literal
 from database import get_tables
 from database import execute
 from xlsxhelper import write_document
