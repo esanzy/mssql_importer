@@ -1,7 +1,7 @@
 ## installing odbc on mac
 
 ```
-brew install freetds --with-unixodbc
+brew install /homebrew/versions/freetds091
 ```
 
 ```
@@ -40,7 +40,7 @@ source myenv/bin/activate
 ```
 
 ```
-pip install pyodbc
+pip install pymssql
 ```
 
 ```

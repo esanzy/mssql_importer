@@ -1,58 +1,60 @@
 import sys
 import traceback
-import pyodbc
+import pymssql  # @UnresolvedImport
 import config
-
-
-cnxn = pyodbc.connect("DSN={0};UID={1};PWD={2}".format(config.dsn, config.userid, config.password))
-cursor = cnxn.cursor()
 
 
 def exec_query(func):
     def wrapped(*args):
-        global cnxn
-        global cursor
         try:
-            if not cnxn:
-                cnxn = pyodbc.connect("DSN={0};UID={1};PWD={2}".format(config.dsn, config.userid, config.password))
-                cursor = cnxn.cursor()
             return func(*args)
-        except pyodbc.OperationalError as oerr:
-            print("Operational Error: ", oerr)
-            if cnxn:
-                cnxn.close()
-            raise oerr
-        except pyodbc.ProgrammingError as perr:
-            print("Programming Error: ", perr)
-            if cnxn:
-                cnxn.close()
-            raise perr
         except Exception as err:
             print("Exception: ", err)
             exc_type, exc_value, exc_traceback = sys.exc_info()
             lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
             print(''.join('!! ' + line for line in lines))
-            if cnxn:
-                cnxn.close()
             raise err
     return wrapped
 
 
-@exec_query
-def execute(query):
-    global cursor
-    cursor.execute(query)
-    results = cursor.fetchall()
-    return results
+class SQLDriver:
+    class __SQLDriver:
+        def __init__(self):
+            self.cnxn = pymssql.connect(config.host, config.userid, config.password, config.dbname)
+            self.cursor = self.cnxn.cursor()
 
+    instance = None
 
-@exec_query
-def raw_query(query):
-    global cursor
-    cursor.execute(query)
-    if config.commit:
-        cnxn.commit()
+    def __init__(self):
+        if not SQLDriver.instance:
+            SQLDriver.instance = SQLDriver.__SQLDriver()
 
+    def close(self):
+        self.instance.cursor.close()
+        self.instance.cnxn.close()
 
-def get_tables():
-    return execute("SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'")
+    @exec_query
+    def execute(self, query):
+        self.instance.cursor.execute(query)
+        results = self.instance.cursor.fetchall()
+        return results
+
+    @exec_query
+    def query_to_dict(self, query):
+        self.instance.cursor.execute(query)
+        columns = [column[0] for column in self.instance.cursor.description]
+        results = []
+        rows = self.instance.cursor.fetchall()
+        for row in rows:
+            results.append(dict(zip(columns, row)))
+
+        return results
+
+    @exec_query
+    def raw_query(self, query):
+        self.instance.cursor.execute(query)
+        if config.commit:
+            self.instance.cnxn.commit()
+
+    def get_tables(self):
+        return self.execute("SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'")
